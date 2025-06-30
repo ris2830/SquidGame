@@ -8,5 +8,26 @@
 <body>
     <h1>test</h1>
     <p>sejfi sybau</p>
+
+
+
+    <script src="/socket.io/socket.io.js"></script>
+<script>
+    // Mit deinem Server verbinden
+    const socket = io();
+
+    // Beispiel: Einem Raum beitreten
+    // In einem echten Spiel würde der User den Code eingeben
+    const roomCode = prompt("Bitte gib den Raum-Code ein:");
+    if (roomCode) {
+        socket.emit('joinRoom', roomCode);
+    }
+
+    // Lauschen, ob der Server uns etwas mitteilt
+    socket.on('userJoined', (message) => {
+        alert(message); // Zeigt eine Nachricht, wenn jemand beitritt
+        // Hier könntest du die Spielerliste auf der Webseite aktualisieren
+    });
+</script>
 </body>
 </html>
