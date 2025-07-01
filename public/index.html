@@ -1,29 +1,561 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Spionage Spiel</title>
-  <link rel="stylesheet" href="style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🕵️ Spy Game - Find the Spy!</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: linear-gradient(135deg, #0f0f23 0%, #1a1a3a 100%);
+            color: #00ff00;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .matrix-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: -1;
+            opacity: 0.1;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .game-header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: rgba(0, 255, 0, 0.1);
+            border: 2px solid #00ff00;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0, 255, 0, 0.3);
+        }
+
+        .game-title {
+            font-size: 3em;
+            text-shadow: 0 0 10px #00ff00;
+            margin-bottom: 10px;
+            animation: glow 2s ease-in-out infinite alternate;
+        }
+
+        @keyframes glow {
+            from { text-shadow: 0 0 10px #00ff00; }
+            to { text-shadow: 0 0 20px #00ff00, 0 0 30px #00ff00; }
+        }
+
+        .screen {
+            display: none;
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid #00ff00;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 0 30px rgba(0, 255, 0, 0.2);
+        }
+
+        .screen.active {
+            display: block;
+            animation: slideIn 0.5s ease-out;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #00ff00;
+            font-weight: bold;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px;
+            background: rgba(0, 0, 0, 0.7);
+            border: 2px solid #00ff00;
+            border-radius: 5px;
+            color: #00ff00;
+            font-family: 'Courier New', monospace;
+            font-size: 16px;
+        }
+
+        input:focus {
+            outline: none;
+            box-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+        }
+
+        .btn {
+            background: linear-gradient(45deg, #004400, #008800);
+            border: 2px solid #00ff00;
+            color: #00ff00;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            margin: 5px;
+        }
+
+        .btn:hover {
+            background: linear-gradient(45deg, #008800, #00ff00);
+            color: #000;
+            box-shadow: 0 0 15px rgba(0, 255, 0, 0.7);
+            transform: translateY(-2px);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .game-info {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .info-card {
+            background: rgba(0, 0, 0, 0.6);
+            border: 2px solid #00ff00;
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .info-title {
+            font-size: 1.2em;
+            margin-bottom: 10px;
+            color: #00ff00;
+        }
+
+        .info-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #ffffff;
+        }
+
+        .players-list {
+            background: rgba(0, 0, 0, 0.6);
+            border: 2px solid #00ff00;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .player-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            margin: 5px 0;
+            background: rgba(0, 255, 0, 0.1);
+            border-radius: 5px;
+            border-left: 4px solid #00ff00;
+        }
+
+        .player-name {
+            font-weight: bold;
+        }
+
+        .player-status {
+            font-size: 0.9em;
+            opacity: 0.8;
+        }
+
+        .chat-container {
+            background: rgba(0, 0, 0, 0.6);
+            border: 2px solid #00ff00;
+            border-radius: 10px;
+            height: 300px;
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 20px;
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 15px;
+            border-bottom: 1px solid #00ff00;
+        }
+
+        .chat-message {
+            margin-bottom: 10px;
+            padding: 8px;
+            background: rgba(0, 255, 0, 0.05);
+            border-radius: 5px;
+            border-left: 3px solid #00ff00;
+        }
+
+        .message-sender {
+            font-weight: bold;
+            color: #00ff00;
+        }
+
+        .message-text {
+            margin-top: 5px;
+        }
+
+        .chat-input {
+            display: flex;
+            padding: 10px;
+        }
+
+        .chat-input input {
+            flex: 1;
+            margin-right: 10px;
+        }
+
+        .voting-section {
+            background: rgba(0, 0, 0, 0.6);
+            border: 2px solid #ff4444;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .vote-buttons {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .vote-btn {
+            background: linear-gradient(45deg, #440000, #880000);
+            border: 2px solid #ff4444;
+            color: #ff4444;
+        }
+
+        .vote-btn:hover {
+            background: linear-gradient(45deg, #880000, #ff4444);
+            color: #000;
+            box-shadow: 0 0 15px rgba(255, 68, 68, 0.7);
+        }
+
+        .role-display {
+            background: rgba(0, 0, 0, 0.8);
+            border: 3px solid;
+            border-radius: 15px;
+            padding: 25px;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 1.5em;
+        }
+
+        .role-spy {
+            border-color: #ff0000;
+            color: #ff0000;
+            box-shadow: 0 0 20px rgba(255, 0, 0, 0.5);
+        }
+
+        .role-civilian {
+            border-color: #0088ff;
+            color: #0088ff;
+            box-shadow: 0 0 20px rgba(0, 136, 255, 0.5);
+        }
+
+        .spy-guess {
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid #ff0000;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .timer {
+            font-size: 3em;
+            font-weight: bold;
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .timer.warning {
+            color: #ff4444;
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .game-result {
+            text-align: center;
+            padding: 30px;
+            font-size: 1.5em;
+        }
+
+        .winner {
+            font-size: 2em;
+            margin: 20px 0;
+            font-weight: bold;
+        }
+
+        .error {
+            background: rgba(255, 0, 0, 0.2);
+            border: 2px solid #ff0000;
+            color: #ff0000;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .game-info {
+                grid-template-columns: 1fr;
+            }
+            
+            .vote-buttons {
+                grid-template-columns: 1fr;
+            }
+            
+            .game-title {
+                font-size: 2em;
+            }
+        }
+    </style>
 </head>
 <body>
-  <h1>Willkommen zum Spionage-Spiel!</h1>
+    <div class="matrix-bg" id="matrix"></div>
+    
+    <div class="container">
+        <div class="game-header">
+            <h1 class="game-title">🕵️ SPY GAME</h1>
+            <p>Find the spy before time runs out!</p>
+        </div>
 
-  <!-- NEU: Ein Bereich für den Login -->
-  <div id="login-bereich">
-    <input type="text" id="spielername-input" placeholder="Gib deinen Namen ein">
-    <button id="beitreten-button">Spiel beitreten</button>
-  </div>
+        <!-- Join Game Screen -->
+        <div class="screen active" id="joinScreen">
+            <h2>🚪 Join Game</h2>
+            <div class="form-group">
+                <label for="gameId">Game ID:</label>
+                <input type="text" id="gameId" placeholder="Enter game code..." />
+            </div>
+            <div class="form-group">
+                <label for="playerName">Your Name:</label>
+                <input type="text" id="playerName" placeholder="Enter your spy name..." />
+            </div>
+            <button class="btn" onclick="joinGame()">🎮 Join Game</button>
+            <div id="joinError" class="error" style="display: none;"></div>
+        </div>
 
-  <!-- NEU: Ein Bereich, der das Spiel anzeigt (zuerst versteckt) -->
-  <div id="spiel-bereich" style="display: none;">
-    <h2>Spieler in der Lobby:</h2>
-    <ul id="spieler-liste">
-      <!-- Hier werden die Namen der Spieler erscheinen -->
-    </ul>
-  </div>
+        <!-- Lobby Screen -->
+        <div class="screen" id="lobbyScreen">
+            <h2>🏁 Game Lobby</h2>
+            <div class="players-list">
+                <h3>Players in game:</h3>
+                <div id="playersList"></div>
+            </div>
+            <button class="btn" id="startGameBtn" onclick="startGame()">🚀 Start Game</button>
+            <div id="lobbyError" class="error" style="display: none;"></div>
+        </div>
 
-  <script src="/socket.io/socket.io.js"></script>
-  <script src="client.js"></script>
-</body>
-</html>
+        <!-- Game Screen -->
+        <div class="screen" id="gameScreen">
+            <div class="game-info">
+                <div class="info-card">
+                    <div class="info-title">⏰ Time</div>
+                    <div class="info-value timer" id="gameTimer">5:00</div>
+                </div>
+                <div class="info-card">
+                    <div class="info-title">👥 Players</div>
+                    <div class="info-value" id="playerCount">0</div>
+                </div>
+                <div class="info-card">
+                    <div class="info-title">📍 Phase</div>
+                    <div class="info-value" id="gamePhase">Discussion</div>
+                </div>
+            </div>
+
+            <div class="role-display" id="roleDisplay"></div>
+
+            <div class="players-list">
+                <h3>🎭 Players:</h3>
+                <div id="gamePlayersList"></div>
+            </div>
+
+            <div class="chat-container">
+                <div class="chat-messages" id="chatMessages"></div>
+                <div class="chat-input">
+                    <input type="text" id="messageInput" placeholder="Type your message..." maxlength="200" />
+                    <button class="btn" onclick="sendMessage()">📤 Send</button>
+                </div>
+            </div>
+
+            <div class="voting-section" id="votingSection" style="display: none;">
+                <h3>🗳️ Vote to eliminate a player:</h3>
+                <div class="vote-buttons" id="voteButtons"></div>
+            </div>
+
+            <div class="spy-guess" id="spyGuessSection" style="display: none;">
+                <h3>🔍 Spy's Final Guess:</h3>
+                <p>As the spy, you can make a final guess about the location to win the game!</p>
+                <input type="text" id="locationGuess" placeholder="Enter location..." />
+                <button class="btn" onclick="makeSpyGuess()">🎯 Make Guess</button>
+            </div>
+        </div>
+
+        <!-- Game Result Screen -->
+        <div class="screen" id="resultScreen">
+            <div class="game-result">
+                <h2>🎮 Game Over!</h2>
+                <div class="winner" id="gameWinner"></div>
+                <div id="gameDetails"></div>
+                <button class="btn" onclick="returnToLobby()">🔄 New Game</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Matrix rain effect
+        function createMatrix() {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            const matrixDiv = document.getElementById('matrix');
+            matrixDiv.appendChild(canvas);
+
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+
+            const letters = '01010110100101110010101011010101010110100101110010101';
+            const fontSize = 14;
+            const columns = canvas.width / fontSize;
+            const drops = Array(Math.floor(columns)).fill(1);
+
+            function draw() {
+                ctx.fillStyle = 'rgba(15, 15, 35, 0.05)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                ctx.fillStyle = '#00ff00';
+                ctx.font = fontSize + 'px monospace';
+
+                for (let i = 0; i < drops.length; i++) {
+                    const text = letters[Math.floor(Math.random() * letters.length)];
+                    ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+                    
+                    if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
+                        drops[i] = 0;
+                    }
+                    drops[i]++;
+                }
+            }
+
+            setInterval(draw, 50);
+        }
+
+        // Initialize matrix effect
+        createMatrix();
+
+        // Socket connection
+        const socket = io();
+        let gameState = null;
+        let myRole = null;
+        let gameId = null;
+
+        // Socket event handlers
+        socket.on('game_joined', (data) => {
+            gameState = data;
+            myRole = data.myRole;
+            showScreen('lobbyScreen');
+            updatePlayersList();
+        });
+
+        socket.on('game_started', (data) => {
+            showScreen('gameScreen');
+        });
+
+        socket.on('game_state', (data) => {
+            gameState = data;
+            myRole = data.myRole;
+            updateGameScreen();
+        });
+
+        socket.on('player_joined', (data) => {
+            gameState = data.gameState;
+            updatePlayersList();
+            addChatMessage('System', `${data.playerName} joined the game`);
+        });
+
+        socket.on('player_left', (data) => {
+            gameState = data.gameState;
+            updatePlayersList();
+            addChatMessage('System', `${data.playerName} left the game`);
+        });
+
+        socket.on('new_message', (data) => {
+            addChatMessage(data.playerName, data.message);
+        });
+
+        socket.on('vote_cast', (data) => {
+            gameState = data.gameState;
+            updateGameScreen();
+        });
+
+        socket.on('game_ended', (data) => {
+            showGameResult(data);
+        });
+
+        socket.on('error', (message) => {
+            showError('joinError', message);
+        });
+
+        // Game functions
+        function joinGame() {
+            const gameIdValue = document.getElementById('gameId').value.trim();
+            const playerNameValue = document.getElementById('playerName').value.trim();
+
+            if (!gameIdValue || !playerNameValue) {
+                showError('joinError', 'Please enter both game ID and player name');
+                return;
+            }
+
+            gameId = gameIdValue;
+            socket.emit('join_game', {
+                gameId: gameIdValue,
+                playerName: playerNameValue
+            });
+        }
+
+        function startGame() {
+            socket.emit('start_game');
+        }
+
+        function sendMessage() {
+    const input = document.getElementById('messageInput');
+    const message = input.value.trim();
+
+    if (!message) return;
+
+    socket.emit('send_message', { message });
+    input.value = '';
+}
+
+</script>
