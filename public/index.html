@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="de">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -33,7 +34,7 @@
         .game-title {
             font-size: 3rem;
             font-weight: bold;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
             margin-bottom: 10px;
             background: linear-gradient(45deg, #ff6b6b, #ffd93d);
             -webkit-background-clip: text;
@@ -56,8 +57,15 @@
         }
 
         @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
         .card {
@@ -80,7 +88,8 @@
             font-weight: 600;
         }
 
-        input[type="text"], input[type="number"] {
+        input[type="text"],
+        input[type="number"] {
             width: 100%;
             padding: 15px;
             border: none;
@@ -187,7 +196,7 @@
             -webkit-text-fill-color: transparent;
             background-clip: text;
             margin: 20px 0;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
         }
 
         .spy-indicator {
@@ -205,7 +214,7 @@
             text-align: center;
             margin: 20px 0;
             color: #ffd93d;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
         }
 
         .voting-grid {
@@ -250,11 +259,11 @@
             .game-title {
                 font-size: 2rem;
             }
-            
+
             .players-list {
                 grid-template-columns: 1fr;
             }
-            
+
             .timer {
                 font-size: 2rem;
             }
@@ -265,9 +274,17 @@
         }
 
         @keyframes pulse {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.05); }
-            100% { transform: scale(1); }
+            0% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.05);
+            }
+
+            100% {
+                transform: scale(1);
+            }
         }
 
         .notification {
@@ -284,11 +301,17 @@
         }
 
         @keyframes slideIn {
-            from { transform: translateX(100%); }
-            to { transform: translateX(0); }
+            from {
+                transform: translateX(100%);
+            }
+
+            to {
+                transform: translateX(0);
+            }
         }
     </style>
 </head>
+
 <body>
     <div class="container">
         <div class="game-header">
@@ -307,8 +330,8 @@
                     <label for="roomCode">Raum beitreten (optional):</label>
                     <input type="text" id="roomCode" placeholder="Raum-Code eingeben...">
                 </div>
-                <button class="btn" onclick="joinGame()">Spiel beitreten</button>
-                <button class="btn btn-secondary" onclick="createRoom()">Neuen Raum erstellen</button>
+                <button class="btn" id="joinGameBtn">Spiel beitreten</button>
+                <button class="btn btn-secondary" id="createRoomBtn">Neuen Raum erstellen</button>
             </div>
         </div>
 
@@ -321,8 +344,9 @@
                 </div>
                 <div class="players-list" id="playersList"></div>
                 <div style="text-align: center;">
-                    <button class="btn" id="readyBtn" onclick="toggleReady()">Bereit!</button>
-                    <button class="btn btn-secondary" id="startGameBtn" onclick="startGame()" disabled>Spiel starten</button>
+                    <button class="btn" id="readyBtn">Bereit!</button>
+                    <button class="btn btn-secondary" id="startGameBtn"  disabled>Spiel
+                        starten</button>
                 </div>
             </div>
         </div>
@@ -334,7 +358,7 @@
                     <h2>Runde <span id="currentRound">1</span></h2>
                     <div class="timer" id="gameTimer">5:00</div>
                 </div>
-                
+
                 <div id="wordReveal" class="card" style="text-align: center;">
                     <h3>Dein Wort:</h3>
                     <div class="secret-word" id="playerWord">STRAND</div>
@@ -347,7 +371,7 @@
                 </div>
 
                 <div style="text-align: center;">
-                    <button class="btn" onclick="startVoting()">Abstimmung starten</button>
+                    <button class="btn" id="startVotingBtn">Abstimmung starten</button>
                 </div>
             </div>
         </div>
@@ -356,12 +380,13 @@
         <div id="votingScreen" class="screen">
             <div class="card">
                 <h2>🗳️ Abstimmung - Wer ist der Spion?</h2>
-                <p style="text-align: center; margin: 20px 0;">Wähle den Spieler, von dem du denkst, dass er der Spion ist:</p>
-                
+                <p style="text-align: center; margin: 20px 0;">Wähle den Spieler, von dem du denkst, dass er der Spion
+                    ist:</p>
+
                 <div class="voting-grid" id="votingOptions"></div>
-                
+
                 <div style="text-align: center;">
-                    <button class="btn" id="submitVoteBtn" onclick="submitVote()" disabled>Stimme abgeben</button>
+                    <button class="btn" id="submitVoteBtn"  disabled>Stimme abgeben</button>
                 </div>
             </div>
         </div>
@@ -378,16 +403,17 @@
                         <div id="votingResults"></div>
                     </div>
                     <div style="margin-top: 30px;">
-                        <button class="btn" onclick="playAgain()">Nochmal spielen</button>
-                        <button class="btn btn-secondary" onclick="backToLobby()">Zurück zur Lobby</button>
+                        <button class="btn" id="playAgainBtn">Nochmal spielen</button>
+                        <button class="btn btn-secondary" id="backToLobbyBtn">Zurück zur Lobby</button>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-   
+
     <script src="/socket.io/socket.io.js"></script>
     <script src="client.js"></script>
 </body>
+
 </html>

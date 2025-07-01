@@ -30,6 +30,23 @@ const winnerText = document.getElementById('winnerText');
 const revealWord = document.getElementById('revealWord');
 const revealSpy = document.getElementById('revealSpy');
 const votingResults = document.getElementById('votingResults');
+const joinGameBtn = document.getElementById('joinGameBtn');
+const createRoomBtn = document.getElementById('createRoomBtn');
+// ... (readyBtn und startGameBtn hast du schon)
+const startVotingBtn = document.getElementById('startVotingBtn');
+// ... (submitVoteBtn hast du schon)
+const playAgainBtn = document.getElementById('playAgainBtn');
+const backToLobbyBtn = document.getElementById('backToLobbyBtn');
+
+
+joinGameBtn.addEventListener('click', joinGame);
+createRoomBtn.addEventListener('click', createRoom);
+readyBtn.addEventListener('click', toggleReady);
+startGameBtn.addEventListener('click', startGame);
+startVotingBtn.addEventListener('click', () => { /* Diese Funktion war leer, definieren wir später */ });
+submitVoteBtn.addEventListener('click', submitVote);
+playAgainBtn.addEventListener('click', playAgain);
+backToLobbyBtn.addEventListener('click', backToLobby);
 
 // --- UI Funktionen ---
 function showScreen(screenId) {
