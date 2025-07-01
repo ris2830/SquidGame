@@ -9,10 +9,21 @@
 <body>
   <h1>Willkommen zum Spionage-Spiel!</h1>
 
-  <!-- DIESE ZEILE IST NEU! Sie lädt die Client-Bibliothek von Socket.IO -->
-  <script src="/socket.io/socket.io.js"></script>
+  <!-- NEU: Ein Bereich für den Login -->
+  <div id="login-bereich">
+    <input type="text" id="spielername-input" placeholder="Gib deinen Namen ein">
+    <button id="beitreten-button">Spiel beitreten</button>
+  </div>
 
-  <!-- Diese Zeile lädt unser eigenes JavaScript -->
+  <!-- NEU: Ein Bereich, der das Spiel anzeigt (zuerst versteckt) -->
+  <div id="spiel-bereich" style="display: none;">
+    <h2>Spieler in der Lobby:</h2>
+    <ul id="spieler-liste">
+      <!-- Hier werden die Namen der Spieler erscheinen -->
+    </ul>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
   <script src="client.js"></script>
 </body>
 </html>
