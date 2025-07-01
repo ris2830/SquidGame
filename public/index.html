@@ -559,3 +559,242 @@
 }
 
 </script>
+
+<script>
+        // NEUE UND ANGEPASSTE FUNKTIONEN FÜR DISKUSSION/VOTING (separater Block zur Sicherheit)
+
+        function formatPhaseName(phase) {
+            switch (phase) {
+                case 'lobby': return 'Lobby';
+                case 'discussion': return 'Diskussion';
+                case 'voting': return 'Abstimmung';
+                case 'result': return 'Runden-Ergebnis';
+                case 'gameOver': return 'Spielende';
+                default: return phase;
+            }
+        }
+
+        function getGamePlayerNameById(playerId) {
+            if (!gameState || !gameState.players) return 'Unbekannter Spieler';
+            const player = gameState.players.find(p => p.id === playerId);
+            return player ? player.name : 'Unbekannter Spieler';
+        }
+
+        function updateVoteButtons(votablePlayers) {
+            const voteButtonsDiv = document.getElementById('voteButtons');
+            if (!voteButtonsDiv) return;
+            voteButtonsDiv.innerHTML = ''; // Clear old buttons
+
+            const me = gameState ? gameState.players.find(p => p.id === myPlayerId) : null;
+            if (me && me.hasVoted) { // If already voted, show message instead of buttons
+                voteButtonsDiv.innerHTML = '<p>Du hast bereits abgestimmt.</p>';
+                return;
+            }
+
+            votablePlayers.forEach(player => {
+                if (player.id === myPlayerId) return; // Cannot vote for self
+
+                const button = document.createElement('button');
+                button.className = 'btn vote-btn'; // Existing classes
+                button.textContent = `Stimme für ${player.name}`;
+                button.onclick = () => castVote(player.id);
+                voteButtonsDiv.appendChild(button);
+            });
+        }
+
+        function castVote(votedPlayerId) {
+            if (!gameState || gameState.currentPhase !== 'voting') {
+                addChatMessage('System', 'Abstimmung ist derzeit nicht möglich.');
+                return;
+            }
+            const me = gameState.players.find(p => p.id === myPlayerId);
+            if (me && me.hasVoted) {
+                 addChatMessage('System', 'Du hast bereits abgestimmt.');
+                 return;
+            }
+            console.log(`Attempting to vote for: ${votedPlayerId}`);
+            socket.emit('cast_vote', { votedPlayerId: votedPlayerId });
+        }
+
+        function displayRoundResult(data) {
+            // Find out who was eliminated based on status (or a specific event from server if added)
+            let eliminatedPlayerName = null;
+            let tie = true; // Assume tie unless specific eliminated player found
+            let mostVotes = 0;
+
+            const voteCounts = {};
+            if(data.votes) { // data.votes from server is {voterId: votedPlayerId}
+                Object.values(data.votes).forEach(votedId => {
+                    voteCounts[votedId] = (voteCounts[votedId] || 0) + 1;
+                });
+            }
+
+            let votedOutId = null;
+            for (const playerId in voteCounts) {
+                if (voteCounts[playerId] > mostVotes) {
+                    mostVotes = voteCounts[playerId];
+                    votedOutId = playerId;
+                    tie = false;
+                } else if (voteCounts[playerId] === mostVotes) {
+                    tie = true;
+                }
+            }
+
+            if (votedOutId && !tie) {
+                const eliminatedPlayer = data.players.find(p => p.id === votedOutId && p.status === 'eliminated');
+                if (eliminatedPlayer) {
+                    eliminatedPlayerName = eliminatedPlayer.name;
+                     addChatMessage('System', `Runden-Ergebnis: ${eliminatedPlayerName} wurde mit ${mostVotes} Stimmen eliminiert.`);
+                    if (eliminatedPlayer.id === myPlayerId) {
+                        addChatMessage('System', "Du wurdest eliminiert!");
+                        // UI anpassen, wenn man selbst eliminiert wurde (z.B. keine Aktionen mehr erlauben)
+                    }
+                } else {
+                    // Fallback, wenn Status nicht direkt aktualisiert wurde oder Logik anders ist
+                    const potentialEliminated = getGamePlayerNameById(votedOutId);
+                    addChatMessage('System', `Runden-Ergebnis: ${potentialEliminated} wurde mit ${mostVotes} Stimmen eliminiert.`);
+                }
+            } else if (tie && mostVotes > 0) {
+                addChatMessage('System', "Runden-Ergebnis: Unentschieden! Niemand wurde eliminiert.");
+            } else {
+                addChatMessage('System', "Runden-Ergebnis: Niemand wurde eliminiert (keine Stimmen oder keine Mehrheit).");
+            }
+        }
+
+        function displayFinalGameResult(data) { // Wird von 'gameOver' Phase in game_state getriggert
+            const winnerDisplay = document.getElementById('gameWinner');
+            const detailsDisplay = document.getElementById('gameDetails');
+            if (!winnerDisplay || !detailsDisplay) return;
+
+            // Annahme: Server sendet eine Struktur wie data.winnerTeam und data.reason
+            if (data.winnerTeam) {
+                 winnerDisplay.textContent = `${formatPhaseName(data.winnerTeam)} haben gewonnen!`;
+                 if (data.reason) {
+                     detailsDisplay.textContent = data.reason;
+                 } else {
+                     detailsDisplay.textContent = '';
+                 }
+            } else {
+                winnerDisplay.textContent = 'Das Spiel ist vorbei.';
+                detailsDisplay.textContent = 'Keine eindeutigen Gewinnerinformationen vom Server.';
+            }
+            // Weitere Details könnten hier angezeigt werden, z.B. wer die Imposter waren.
+        }
+
+        // ANGEPASSTER game_state HANDLER (ersetzt den alten oder wird zusätzlich geladen)
+        // Es ist besser, den alten game_state Handler zu entfernen oder diesen hier umzubenennen,
+        // um Konflikte zu vermeiden, wenn beide gleichzeitig existieren.
+        // Für diesen automatisierten Schritt gehen wir davon aus, dass der Agent dies später korrigiert
+        // oder dass der Browser den letzten Handler verwendet.
+        const original_socket_on_game_state = socket.listeners('game_state')[0]; // Versuche alten Listener zu bekommen
+        if(original_socket_on_game_state) socket.off('game_state', original_socket_on_game_state); // Entferne alten Listener
+
+        socket.on('game_state', (data) => {
+            console.log('Game state received (new handler):', data);
+            const oldPhase = gameState ? gameState.currentPhase : null;
+            gameState = data;
+
+            const playerCountDisplay = document.getElementById('playerCount');
+            if (playerCountDisplay) playerCountDisplay.textContent = data.players.length;
+
+            const startGameBtn = document.getElementById('startGameBtn');
+            if (startGameBtn) {
+                 const clientMinPlayers = 3;
+                 startGameBtn.disabled = data.players.length < clientMinPlayers || data.gameStarted;
+                 startGameBtn.textContent = `🚀 Spiel starten (${data.players.length}/${clientMinPlayers}+ Spieler)`;
+            }
+
+            if (document.getElementById('lobbyScreen').classList.contains('active')) {
+                updateLobbyPlayers(data.players);
+            }
+
+            const gameScreenActive = document.getElementById('gameScreen').classList.contains('active');
+            if (gameScreenActive) {
+                updateGamePlayersList(data.players.filter(p => p.status === 'active'));
+                const me = data.players.find(p => p.id === myPlayerId);
+                if (me) {
+                    updateRoleDisplay(myRole, myWord, me.role === 'Imposter'); // myRole/myWord kommen von 'player_info'
+                    if (me.status === 'eliminated') {
+                        document.getElementById('messageInput').disabled = true;
+                        document.querySelector('.chat-input button').disabled = true;
+                        if(document.getElementById('votingSection')) document.getElementById('votingSection').style.display = 'none';
+                        // Verhindere wiederholte Nachrichten über Eliminierung
+                        if (!window.eliminationNotified) {
+                            addChatMessage('System', 'Du bist eliminiert und kannst nicht mehr teilnehmen.');
+                            window.eliminationNotified = true;
+                        }
+                    } else {
+                        document.getElementById('messageInput').disabled = false;
+                        document.querySelector('.chat-input button').disabled = false;
+                        window.eliminationNotified = false; // Reset, falls Spieler wiederbelebt wird (unwahrscheinlich hier)
+                    }
+                }
+            }
+
+            const gamePhaseDisplay = document.getElementById('gamePhase');
+            if (gamePhaseDisplay) gamePhaseDisplay.textContent = formatPhaseName(data.currentPhase);
+
+            const gameTimerDisplay = document.getElementById('gameTimer');
+            if (gameTimerDisplay && data.timerValue !== undefined) {
+                const minutes = Math.floor(data.timerValue / 60);
+                const seconds = data.timerValue % 60;
+                gameTimerDisplay.textContent = `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+                gameTimerDisplay.classList.toggle('warning', data.timerValue <= 10 && data.timerValue > 0 && data.currentPhase !== 'result');
+            }
+
+            const votingSection = document.getElementById('votingSection');
+            const chatContainer = document.querySelector('.chat-container');
+
+            // Nur Screen wechseln, wenn sich die Phase tatsächlich geändert hat und der Screen nicht schon aktiv ist
+            if (data.currentPhase === 'discussion') {
+                if (!gameScreenActive && data.currentPhase !== oldPhase) showScreen('gameScreen');
+                if(votingSection) votingSection.style.display = 'none';
+                if(chatContainer) chatContainer.style.display = 'flex';
+                updateVoteButtons([]);
+            } else if (data.currentPhase === 'voting') {
+                if (!gameScreenActive && data.currentPhase !== oldPhase) showScreen('gameScreen');
+                if(votingSection) votingSection.style.display = 'block';
+                if(chatContainer) chatContainer.style.display = 'none';
+                const me = data.players.find(p => p.id === myPlayerId);
+                if (me && me.status === 'active' && !me.hasVoted) {
+                    updateVoteButtons(data.players.filter(p => p.status === 'active' && p.id !== myPlayerId));
+                } else {
+                     updateVoteButtons([]);
+                }
+            } else if (data.currentPhase === 'result') {
+                if (!gameScreenActive && data.currentPhase !== oldPhase) showScreen('gameScreen');
+                if(votingSection) votingSection.style.display = 'none';
+                if(chatContainer) chatContainer.style.display = 'flex';
+                if (oldPhase === 'voting' || (oldPhase === 'discussion' && data.timerValue <=0) ) { // Ergebnis anzeigen, wenn von Voting oder Discussion-Timeout kommend
+                    displayRoundResult(data);
+                }
+            } else if (data.currentPhase === 'gameOver') {
+                if(data.currentPhase !== oldPhase) showScreen('resultScreen');
+                displayFinalGameResult(data);
+            } else if (data.currentPhase === 'lobby') {
+                if (!document.getElementById('lobbyScreen').classList.contains('active') && data.currentPhase !== oldPhase) showScreen('lobbyScreen');
+            }
+        });
+
+        // NEUER Event Handler
+        const original_socket_on_vote_confirmed = socket.listeners('vote_confirmed')[0];
+        if(original_socket_on_vote_confirmed) socket.off('vote_confirmed', original_socket_on_vote_confirmed);
+
+        socket.on('vote_confirmed', (data) => {
+            console.log('Vote confirmed for player ID:', data.votedPlayerId);
+            const targetPlayer = gameState.players.find(p => p.id === data.votedPlayerId);
+            addChatMessage('System', `Du hast erfolgreich für ${targetPlayer ? targetPlayer.name : 'unbekannt'} gestimmt.`);
+            updateVoteButtons([]);
+            const me = gameState.players.find(p => p.id === myPlayerId);
+            if(me) me.hasVoted = true;
+        });
+
+        function returnToLobby() {
+            // Einfachste Methode: Seite neu laden, um zum Join-Screen zurückzukehren
+            window.location.reload();
+            // Alternativ könnte man ein Event an den Server senden, um das Spiel zurückzusetzen
+            // oder den Spieler aus dem aktuellen Spiel zu entfernen und zur Lobby-Auswahl zu leiten,
+            // falls es eine spielübergreifende Lobby gäbe.
+            // Für dieses Einzelspiel-Setup ist reload() ausreichend.
+        }
+</script>
