@@ -4,13 +4,15 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Spionage Spiel</title>
-  <!-- Hier kommt später unser CSS für das Aussehen hin -->
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <h1>Willkommen zum Spionage-Spiel!</h1>
 
-  <!-- Diese Zeile ist wichtig, sie lädt unser eigenes JavaScript -->
+  <!-- DIESE ZEILE IST NEU! Sie lädt die Client-Bibliothek von Socket.IO -->
+  <script src="/socket.io/socket.io.js"></script>
+
+  <!-- Diese Zeile lädt unser eigenes JavaScript -->
   <script src="client.js"></script>
 </body>
 </html>
